@@ -14,7 +14,7 @@
 
     <div class="card">
 
-        <img src="{{ url_for('static', filename='logo.png') }}" class="logo">
+        <img src="{{ url_for('static', filename='logo.png') }}" class="logo" alt="Logo">
 
         <h1>Omikuji Info</h1>
 
@@ -32,13 +32,18 @@
                 placeholder="Password"
                 required>
 
-            <label>📢 チャンネルID</label>
+            <label>📢 送信先チャンネル</label>
 
-            <input
-                type="text"
-                name="channel_id"
-                placeholder="123456789012345678"
-                required>
+            <select name="channel_id" required>
+                <option value="">チャンネルを選択してください</option>
+
+                {% for ch in channels %}
+                <option value="{{ ch.channel_id }}">
+                    {{ ch.guild_name }} / #{{ ch.channel_name }}
+                </option>
+                {% endfor %}
+
+            </select>
 
             <label>📝 タイトル</label>
 
