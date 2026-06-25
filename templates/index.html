@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Omikuji Info Dashboard</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+
+<div class="container">
+
+    <div class="card">
+
+        <img src="{{ url_for('static', filename='logo.png') }}" class="logo">
+
+        <h1>Omikuji Info</h1>
+
+        <p class="subtitle">
+            Discord お知らせ管理システム
+        </p>
+
+        <form action="/send" method="POST">
+
+            <label>🔒 管理パスワード</label>
+
+            <input
+                type="password"
+                name="password"
+                placeholder="Password"
+                required>
+
+            <label>📢 チャンネルID</label>
+
+            <input
+                type="text"
+                name="channel_id"
+                placeholder="123456789012345678"
+                required>
+
+            <label>📝 タイトル</label>
+
+            <input
+                type="text"
+                name="title"
+                placeholder="アップデートのお知らせ">
+
+            <label>📄 本文</label>
+
+            <textarea
+                name="message"
+                rows="8"
+                placeholder="ここに本文を書いてください..."
+                required></textarea>
+
+            <label>🎨 Embedカラー</label>
+
+            <select name="color">
+                <option value="3447003">🔵 Blue</option>
+                <option value="3066993">🟢 Green</option>
+                <option value="15158332">🔴 Red</option>
+                <option value="16776960">🟡 Yellow</option>
+            </select>
+
+            <div class="check">
+
+                <input
+                    type="checkbox"
+                    name="everyone"
+                    id="everyone">
+
+                <label for="everyone">
+                    @everyone を付ける
+                </label>
+
+            </div>
+
+            <button type="submit">
+                🚀 Discordへ送信
+            </button>
+
+        </form>
+
+    </div>
+
+</div>
+
+</body>
+</html>
