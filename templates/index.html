@@ -4,35 +4,40 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Omikuji Info Dashboard</title>
-
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 
 <body>
-
 <div class="container">
     <div class="card">
 
         <img src="{{ url_for('static', filename='logo.png') }}" class="logo" alt="Logo">
 
         <h1>Omikuji Info</h1>
+        <p class="subtitle">Discord お知らせ管理システム</p>
 
-        <p class="subtitle">
-            Discord お知らせ管理システム
-        </p>
+        {% if message %}
+        <div class="notice">
+            {{ message }}
+        </div>
+        {% endif %}
+
+        <form action="/sync" method="POST">
+            <label>🔒 管理パスワード</label>
+            <input type="password" name="password" placeholder="Password" required>
+
+            <button type="submit">
+                🔄 サーバー・チャンネル同期
+            </button>
+        </form>
+
+        <hr>
 
         <form action="/send" method="POST" enctype="multipart/form-data">
-
             <label>🔒 管理パスワード</label>
-
-            <input
-                type="password"
-                name="password"
-                placeholder="Password"
-                required>
+            <input type="password" name="password" placeholder="Password" required>
 
             <label>📢 送信先チャンネル</label>
-
             <select name="channel_id" required>
                 <option value="">チャンネルを選択してください</option>
 
@@ -44,14 +49,9 @@
             </select>
 
             <label>📝 タイトル</label>
-
-            <input
-                type="text"
-                name="title"
-                placeholder="アップデートのお知らせ">
+            <input type="text" name="title" placeholder="アップデートのお知らせ">
 
             <label>📄 本文</label>
-
             <textarea
                 name="message"
                 rows="8"
@@ -59,14 +59,9 @@
                 required></textarea>
 
             <label>🖼️ 画像添付</label>
-
-            <input
-                type="file"
-                name="image"
-                accept="image/*">
+            <input type="file" name="image" accept="image/*">
 
             <label>🎨 Embedカラー</label>
-
             <select name="color">
                 <option value="3447003">🔵 Blue</option>
                 <option value="3066993">🟢 Green</option>
@@ -75,24 +70,16 @@
             </select>
 
             <div class="check">
-                <input
-                    type="checkbox"
-                    name="everyone"
-                    id="everyone">
-
-                <label for="everyone">
-                    @everyone を付ける
-                </label>
+                <input type="checkbox" name="everyone" id="everyone">
+                <label for="everyone">@everyone を付ける</label>
             </div>
 
             <button type="submit">
                 🚀 Discordへ送信
             </button>
-
         </form>
 
     </div>
 </div>
-
 </body>
 </html>
