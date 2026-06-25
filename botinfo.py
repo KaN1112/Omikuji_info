@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template
+from flask import Flask, request, render_template, redirect
 import requests
 import os
 import json
@@ -6,13 +6,26 @@ import json
 TOKEN = os.getenv("DISCORD_TOKEN")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin")
 
+CHANNELS_FILE = "channels.json"
+
 app = Flask(__name__)
 
 HEADERS = {
     "Authorization": f"Bot {TOKEN}"
 }
 
-def get_channels():
+def load_channels():
+    if not os.path.exists(CHANNELS_FILE):
+        return []
+
+    with open(CHANNELS_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+def save_channels(channels):
+    with open(CHANNELS_FILE, "w", encoding="utf-8") as f:
+        json.dump(channels, f, ensure_ascii=False, indent=4)
+
+def sync_channels():
     channels_list = []
 
     guilds_res = requests.get(
@@ -21,20 +34,9 @@ def get_channels():
     )
 
     if guilds_res.status_code != 200:
-        return [{
-            "guild_name": "ERROR",
-            "channel_name": f"guilds取得失敗 {guilds_res.status_code}",
-            "channel_id": ""
-        }]
+        return False, f"サーバー取得失敗: {guilds_res.status_code} / {guilds_res.text}"
 
     guilds = guilds_res.json()
-
-    if not guilds:
-        return [{
-            "guild_name": "ERROR",
-            "channel_name": "Botがサーバーに参加していません",
-            "channel_id": ""
-        }]
 
     for guild in guilds:
         guild_id = guild["id"]
@@ -46,16 +48,9 @@ def get_channels():
         )
 
         if channels_res.status_code != 200:
-            channels_list.append({
-                "guild_name": guild_name,
-                "channel_name": f"channels取得失敗 {channels_res.status_code}",
-                "channel_id": ""
-            })
             continue
 
-        channels = channels_res.json()
-
-        for ch in channels:
+        for ch in channels_res.json():
             if ch.get("type") == 0:
                 channels_list.append({
                     "guild_name": guild_name,
@@ -63,26 +58,34 @@ def get_channels():
                     "channel_id": ch["id"]
                 })
 
-    if not channels_list:
-        channels_list.append({
-            "guild_name": "ERROR",
-            "channel_name": "表示できるテキストチャンネルがありません",
-            "channel_id": ""
-        })
-
-    return channels_list
+    save_channels(channels_list)
+    return True, f"{len(channels_list)}件のチャンネルを同期しました"
 
 @app.route("/")
 def home():
-    channels = get_channels()
-    return render_template("index.html", channels=channels)
+    channels = load_channels()
+    return render_template("index.html", channels=channels, message=None)
+
+@app.route("/sync", methods=["POST"])
+def sync():
+    password = request.form.get("password")
+
+    if password != ADMIN_PASSWORD:
+        channels = load_channels()
+        return render_template("index.html", channels=channels, message="パスワードが違います")
+
+    success, msg = sync_channels()
+    channels = load_channels()
+
+    return render_template("index.html", channels=channels, message=msg)
 
 @app.route("/send", methods=["POST"])
 def send_message():
     password = request.form.get("password")
 
     if password != ADMIN_PASSWORD:
-        return "パスワードが違います"
+        channels = load_channels()
+        return render_template("index.html", channels=channels, message="パスワードが違います")
 
     channel_id = request.form.get("channel_id")
     title = request.form.get("title") or "お知らせ"
@@ -91,10 +94,12 @@ def send_message():
     image = request.files.get("image")
 
     if not channel_id:
-        return "チャンネルが選択されていません"
+        channels = load_channels()
+        return render_template("index.html", channels=channels, message="チャンネルが選択されていません")
 
     if not message:
-        return "本文が空です"
+        channels = load_channels()
+        return render_template("index.html", channels=channels, message="本文が空です")
 
     content = "@everyone" if request.form.get("everyone") else ""
 
@@ -138,10 +143,16 @@ def send_message():
             json=payload
         )
 
-    if res.status_code in [200, 201]:
-        return "送信しました！"
+    channels = load_channels()
 
-    return f"送信失敗: {res.status_code}<br>{res.text}"
+    if res.status_code in [200, 201]:
+        return render_template("index.html", channels=channels, message="送信しました！")
+
+    return render_template(
+        "index.html",
+        channels=channels,
+        message=f"送信失敗: {res.status_code} / {res.text}"
+    )
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
