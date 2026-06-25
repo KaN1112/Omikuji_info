@@ -8,8 +8,7 @@ ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin")
 app = Flask(__name__)
 
 HEADERS = {
-    "Authorization": f"Bot {TOKEN}",
-    "Content-Type": "application/json"
+    "Authorization": f"Bot {TOKEN}"
 }
 
 def get_channels():
@@ -23,9 +22,7 @@ def get_channels():
     if guilds_res.status_code != 200:
         return []
 
-    guilds = guilds_res.json()
-
-    for guild in guilds:
+    for guild in guilds_res.json():
         guild_id = guild["id"]
         guild_name = guild["name"]
 
@@ -37,9 +34,7 @@ def get_channels():
         if channels_res.status_code != 200:
             continue
 
-        channels = channels_res.json()
-
-        for ch in channels:
+        for ch in channels_res.json():
             if ch.get("type") == 0:
                 channels_list.append({
                     "guild_name": guild_name,
@@ -65,6 +60,7 @@ def send_message():
     title = request.form.get("title") or "お知らせ"
     message = request.form.get("message")
     color = int(request.form.get("color"))
+    image = request.files.get("image")
 
     if not channel_id:
         return "チャンネルが選択されていません"
@@ -74,9 +70,7 @@ def send_message():
 
     content = "@everyone" if request.form.get("everyone") else ""
 
-    url = f"https://discord.com/api/v10/channels/{channel_id}/messages"
-
-    data = {
+    payload = {
         "content": content,
         "embeds": [
             {
@@ -87,7 +81,34 @@ def send_message():
         ]
     }
 
-    res = requests.post(url, headers=HEADERS, json=data)
+    url = f"https://discord.com/api/v10/channels/{channel_id}/messages"
+
+    if image and image.filename:
+        files = {
+            "file": (image.filename, image.stream, image.mimetype)
+        }
+
+        data = {
+            "payload_json": __import__("json").dumps(payload, ensure_ascii=False)
+        }
+
+        res = requests.post(
+            url,
+            headers=HEADERS,
+            data=data,
+            files=files
+        )
+    else:
+        headers = {
+            "Authorization": f"Bot {TOKEN}",
+            "Content-Type": "application/json"
+        }
+
+        res = requests.post(
+            url,
+            headers=headers,
+            json=payload
+        )
 
     if res.status_code in [200, 201]:
         return "送信しました！"
