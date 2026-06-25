@@ -102,4 +102,16 @@ async def on_ready():
     print(f"ログイン成功: {bot.user}")
 
 Thread(target=run_web).start()
+@bot.event
+async def on_ready():
+    print(f"ログイン成功: {bot.user}", flush=True)
+
+def run_web():
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
+
+if __name__ == "__main__":
+    print("BOT START", flush=True)
+    Thread(target=run_web, daemon=True).start()
+    bot.run(TOKEN, log_handler=None)
 bot.run(TOKEN)
