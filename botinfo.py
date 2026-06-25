@@ -1,12 +1,15 @@
-from flask import Flask, request, render_template, redirect
+from flask import Flask, request, render_template
 import requests
 import os
 import json
+import time
 
 TOKEN = os.getenv("DISCORD_TOKEN")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin")
 
 CHANNELS_FILE = "channels.json"
+SYNC_STATUS_FILE = "sync_status.json"
+SYNC_COOLDOWN = 30 * 60
 
 app = Flask(__name__)
 
@@ -24,6 +27,31 @@ def load_channels():
 def save_channels(channels):
     with open(CHANNELS_FILE, "w", encoding="utf-8") as f:
         json.dump(channels, f, ensure_ascii=False, indent=4)
+
+def load_sync_status():
+    if not os.path.exists(SYNC_STATUS_FILE):
+        return {"last_sync": 0}
+
+    with open(SYNC_STATUS_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+def save_sync_status():
+    with open(SYNC_STATUS_FILE, "w", encoding="utf-8") as f:
+        json.dump({"last_sync": int(time.time())}, f, ensure_ascii=False, indent=4)
+
+def can_sync():
+    status = load_sync_status()
+    last_sync = status.get("last_sync", 0)
+    now = int(time.time())
+
+    remaining = SYNC_COOLDOWN - (now - last_sync)
+
+    if remaining > 0:
+        minutes = remaining // 60
+        seconds = remaining % 60
+        return False, f"同期は30分に1回までです。あと{minutes}分{seconds}秒待ってください。"
+
+    return True, ""
 
 def sync_channels():
     channels_list = []
@@ -59,6 +87,8 @@ def sync_channels():
                 })
 
     save_channels(channels_list)
+    save_sync_status()
+
     return True, f"{len(channels_list)}件のチャンネルを同期しました"
 
 @app.route("/")
@@ -71,21 +101,39 @@ def sync():
     password = request.form.get("password")
 
     if password != ADMIN_PASSWORD:
-        channels = load_channels()
-        return render_template("index.html", channels=channels, message="パスワードが違います")
+        return render_template(
+            "index.html",
+            channels=load_channels(),
+            message="パスワードが違います"
+        )
+
+    allowed, wait_message = can_sync()
+
+    if not allowed:
+        return render_template(
+            "index.html",
+            channels=load_channels(),
+            message=wait_message
+        )
 
     success, msg = sync_channels()
-    channels = load_channels()
 
-    return render_template("index.html", channels=channels, message=msg)
+    return render_template(
+        "index.html",
+        channels=load_channels(),
+        message=msg
+    )
 
 @app.route("/send", methods=["POST"])
 def send_message():
     password = request.form.get("password")
 
     if password != ADMIN_PASSWORD:
-        channels = load_channels()
-        return render_template("index.html", channels=channels, message="パスワードが違います")
+        return render_template(
+            "index.html",
+            channels=load_channels(),
+            message="パスワードが違います"
+        )
 
     channel_id = request.form.get("channel_id")
     title = request.form.get("title") or "お知らせ"
@@ -94,12 +142,18 @@ def send_message():
     image = request.files.get("image")
 
     if not channel_id:
-        channels = load_channels()
-        return render_template("index.html", channels=channels, message="チャンネルが選択されていません")
+        return render_template(
+            "index.html",
+            channels=load_channels(),
+            message="チャンネルが選択されていません"
+        )
 
     if not message:
-        channels = load_channels()
-        return render_template("index.html", channels=channels, message="本文が空です")
+        return render_template(
+            "index.html",
+            channels=load_channels(),
+            message="本文が空です"
+        )
 
     content = "@everyone" if request.form.get("everyone") else ""
 
@@ -143,14 +197,16 @@ def send_message():
             json=payload
         )
 
-    channels = load_channels()
-
     if res.status_code in [200, 201]:
-        return render_template("index.html", channels=channels, message="送信しました！")
+        return render_template(
+            "index.html",
+            channels=load_channels(),
+            message="送信しました！"
+        )
 
     return render_template(
         "index.html",
-        channels=channels,
+        channels=load_channels(),
         message=f"送信失敗: {res.status_code} / {res.text}"
     )
 
