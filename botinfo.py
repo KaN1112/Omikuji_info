@@ -1,4 +1,4 @@
-from flask import Flask, request, redirect
+from flask import Flask, request, render_template
 import requests
 import os
 
@@ -7,41 +7,9 @@ ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin")
 
 app = Flask(__name__)
 
-HTML = """
-<h2>📢 Bot運用お知らせ</h2>
-
-<form method="POST" action="/send">
-    <input type="password" name="password" placeholder="パスワード"><br><br>
-
-    <label>送信先チャンネルID</label><br>
-    <input type="text" name="channel_id" placeholder="例：123456789012345678"><br><br>
-
-    <label>タイトル</label><br>
-    <input type="text" name="title" placeholder="例：メンテナンスのお知らせ"><br><br>
-
-    <label>本文</label><br>
-    <textarea name="message" rows="8" cols="50"></textarea><br><br>
-
-    <label>色</label><br>
-    <select name="color">
-        <option value="3447003">青</option>
-        <option value="15158332">赤</option>
-        <option value="3066993">緑</option>
-        <option value="16776960">黄</option>
-    </select><br><br>
-
-    <label>
-        <input type="checkbox" name="everyone">
-        @everyone を付ける
-    </label><br><br>
-
-    <button type="submit">送信</button>
-</form>
-"""
-
 @app.route("/")
 def home():
-    return HTML
+    return render_template("index.html")
 
 @app.route("/send", methods=["POST"])
 def send_message():
