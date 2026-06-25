@@ -11,7 +11,6 @@
 <body>
 
 <div class="container">
-
     <div class="card">
 
         <img src="{{ url_for('static', filename='logo.png') }}" class="logo" alt="Logo">
@@ -22,7 +21,7 @@
             Discord お知らせ管理システム
         </p>
 
-        <form action="/send" method="POST">
+        <form action="/send" method="POST" enctype="multipart/form-data">
 
             <label>🔒 管理パスワード</label>
 
@@ -42,7 +41,6 @@
                     {{ ch.guild_name }} / #{{ ch.channel_name }}
                 </option>
                 {% endfor %}
-
             </select>
 
             <label>📝 タイトル</label>
@@ -60,6 +58,13 @@
                 placeholder="ここに本文を書いてください..."
                 required></textarea>
 
+            <label>🖼️ 画像添付</label>
+
+            <input
+                type="file"
+                name="image"
+                accept="image/*">
+
             <label>🎨 Embedカラー</label>
 
             <select name="color">
@@ -70,7 +75,6 @@
             </select>
 
             <div class="check">
-
                 <input
                     type="checkbox"
                     name="everyone"
@@ -79,7 +83,6 @@
                 <label for="everyone">
                     @everyone を付ける
                 </label>
-
             </div>
 
             <button type="submit">
@@ -89,7 +92,6 @@
         </form>
 
     </div>
-
 </div>
 
 </body>
