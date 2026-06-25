@@ -1,6 +1,7 @@
 from flask import Flask, request, render_template
 import requests
 import os
+import json
 
 TOKEN = os.getenv("DISCORD_TOKEN")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin")
@@ -20,9 +21,22 @@ def get_channels():
     )
 
     if guilds_res.status_code != 200:
-        return []
+        return [{
+            "guild_name": "ERROR",
+            "channel_name": f"guilds取得失敗 {guilds_res.status_code}",
+            "channel_id": ""
+        }]
 
-    for guild in guilds_res.json():
+    guilds = guilds_res.json()
+
+    if not guilds:
+        return [{
+            "guild_name": "ERROR",
+            "channel_name": "Botがサーバーに参加していません",
+            "channel_id": ""
+        }]
+
+    for guild in guilds:
         guild_id = guild["id"]
         guild_name = guild["name"]
 
@@ -32,15 +46,29 @@ def get_channels():
         )
 
         if channels_res.status_code != 200:
+            channels_list.append({
+                "guild_name": guild_name,
+                "channel_name": f"channels取得失敗 {channels_res.status_code}",
+                "channel_id": ""
+            })
             continue
 
-        for ch in channels_res.json():
+        channels = channels_res.json()
+
+        for ch in channels:
             if ch.get("type") == 0:
                 channels_list.append({
                     "guild_name": guild_name,
                     "channel_name": ch["name"],
                     "channel_id": ch["id"]
                 })
+
+    if not channels_list:
+        channels_list.append({
+            "guild_name": "ERROR",
+            "channel_name": "表示できるテキストチャンネルがありません",
+            "channel_id": ""
+        })
 
     return channels_list
 
@@ -89,7 +117,7 @@ def send_message():
         }
 
         data = {
-            "payload_json": __import__("json").dumps(payload, ensure_ascii=False)
+            "payload_json": json.dumps(payload, ensure_ascii=False)
         }
 
         res = requests.post(
