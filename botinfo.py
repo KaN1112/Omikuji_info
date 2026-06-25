@@ -10,12 +10,13 @@ ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin")
 
 intents = discord.Intents.default()
 intents.guilds = True
-bot = commands.Bot(command_prefix="!", intents=intents)
 
+bot = commands.Bot(command_prefix="!", intents=intents)
 app = Flask(__name__)
 
 def make_html():
     options = ""
+
     for guild in bot.guilds:
         for channel in guild.text_channels:
             options += f'<option value="{channel.id}">{guild.name} / #{channel.name}</option>'
@@ -62,6 +63,7 @@ def home():
 @app.route("/send", methods=["POST"])
 def send_message():
     password = request.form.get("password")
+
     if password != ADMIN_PASSWORD:
         return "パスワードが違います"
 
@@ -70,6 +72,9 @@ def send_message():
     message = request.form.get("message")
     color_name = request.form.get("color")
     everyone = request.form.get("everyone")
+
+    if not message:
+        return "本文が空です"
 
     colors = {
         "blue": 0x3498db,
@@ -80,6 +85,10 @@ def send_message():
 
     async def send_to_discord():
         channel = bot.get_channel(channel_id)
+
+        if channel is None:
+            channel = await bot.fetch_channel(channel_id)
+
         embed = discord.Embed(
             title=title,
             description=message,
@@ -99,19 +108,13 @@ def run_web():
 
 @bot.event
 async def on_ready():
-    print(f"ログイン成功: {bot.user}")
-
-Thread(target=run_web).start()
-@bot.event
-async def on_ready():
     print(f"ログイン成功: {bot.user}", flush=True)
-
-def run_web():
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port)
 
 if __name__ == "__main__":
     print("BOT START", flush=True)
-    Thread(target=run_web, daemon=True).start()
-    bot.run(TOKEN, log_handler=None)
-bot.run(TOKEN)
+
+    if TOKEN is None:
+        print("DISCORD_TOKEN が設定されていません", flush=True)
+    else:
+        Thread(target=run_web, daemon=True).start()
+        bot.run(TOKEN)
