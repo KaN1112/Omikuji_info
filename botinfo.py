@@ -93,67 +93,40 @@ def sync_channels():
 
 @app.route("/")
 def home():
-    channels = load_channels()
-    return render_template("index.html", channels=channels, message=None)
+    return render_template("index.html", channels=load_channels(), message=None)
 
 @app.route("/sync", methods=["POST"])
 def sync():
     password = request.form.get("password")
 
     if password != ADMIN_PASSWORD:
-        return render_template(
-            "index.html",
-            channels=load_channels(),
-            message="パスワードが違います"
-        )
+        return render_template("index.html", channels=load_channels(), message="パスワードが違います")
 
     allowed, wait_message = can_sync()
-
     if not allowed:
-        return render_template(
-            "index.html",
-            channels=load_channels(),
-            message=wait_message
-        )
+        return render_template("index.html", channels=load_channels(), message=wait_message)
 
     success, msg = sync_channels()
-
-    return render_template(
-        "index.html",
-        channels=load_channels(),
-        message=msg
-    )
+    return render_template("index.html", channels=load_channels(), message=msg)
 
 @app.route("/send", methods=["POST"])
 def send_message():
     password = request.form.get("password")
 
     if password != ADMIN_PASSWORD:
-        return render_template(
-            "index.html",
-            channels=load_channels(),
-            message="パスワードが違います"
-        )
+        return render_template("index.html", channels=load_channels(), message="パスワードが違います")
 
-    channel_id = request.form.get("channel_id")
+    channel_ids = request.form.getlist("channel_ids")
     title = request.form.get("title") or "お知らせ"
     message = request.form.get("message")
     color = int(request.form.get("color"))
     image = request.files.get("image")
 
-    if not channel_id:
-        return render_template(
-            "index.html",
-            channels=load_channels(),
-            message="チャンネルが選択されていません"
-        )
+    if not channel_ids:
+        return render_template("index.html", channels=load_channels(), message="チャンネルが選択されていません")
 
     if not message:
-        return render_template(
-            "index.html",
-            channels=load_channels(),
-            message="本文が空です"
-        )
+        return render_template("index.html", channels=load_channels(), message="本文が空です")
 
     content = "@everyone" if request.form.get("everyone") else ""
 
@@ -168,47 +141,52 @@ def send_message():
         ]
     }
 
-    url = f"https://discord.com/api/v10/channels/{channel_id}/messages"
+    success_count = 0
+    failed = []
 
-    if image and image.filename:
-        files = {
-            "file": (image.filename, image.stream, image.mimetype)
-        }
+    for channel_id in channel_ids:
+        url = f"https://discord.com/api/v10/channels/{channel_id}/messages"
 
-        data = {
-            "payload_json": json.dumps(payload, ensure_ascii=False)
-        }
+        if image and image.filename:
+            image.stream.seek(0)
 
-        res = requests.post(
-            url,
-            headers=HEADERS,
-            data=data,
-            files=files
-        )
+            files = {
+                "file": (image.filename, image.stream, image.mimetype)
+            }
+
+            data = {
+                "payload_json": json.dumps(payload, ensure_ascii=False)
+            }
+
+            res = requests.post(
+                url,
+                headers=HEADERS,
+                data=data,
+                files=files
+            )
+        else:
+            headers = {
+                "Authorization": f"Bot {TOKEN}",
+                "Content-Type": "application/json"
+            }
+
+            res = requests.post(
+                url,
+                headers=headers,
+                json=payload
+            )
+
+        if res.status_code in [200, 201]:
+            success_count += 1
+        else:
+            failed.append(f"{channel_id}: {res.status_code}")
+
+    if failed:
+        result_message = f"{success_count}件送信成功 / {len(failed)}件失敗：{', '.join(failed)}"
     else:
-        headers = {
-            "Authorization": f"Bot {TOKEN}",
-            "Content-Type": "application/json"
-        }
+        result_message = f"{success_count}件のチャンネルに送信しました！"
 
-        res = requests.post(
-            url,
-            headers=headers,
-            json=payload
-        )
-
-    if res.status_code in [200, 201]:
-        return render_template(
-            "index.html",
-            channels=load_channels(),
-            message="送信しました！"
-        )
-
-    return render_template(
-        "index.html",
-        channels=load_channels(),
-        message=f"送信失敗: {res.status_code} / {res.text}"
-    )
+    return render_template("index.html", channels=load_channels(), message=result_message)
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
